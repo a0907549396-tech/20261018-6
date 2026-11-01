@@ -87,7 +87,7 @@ nav a:hover{color:var(--ink)}
 .about p+p{margin-top:14px}
 
 /* form */
-form{display:grid;grid-template-columns:1fr 1fr;gap:18px 20px;max-width:760px}
+form{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:18px 20px;max-width:760px}
 label{display:flex;flex-direction:column;gap:6px;font-weight:500;font-size:.92rem}
 label.full,form button{grid-column:1/-1}
 input,select,textarea{font:inherit;padding:11px 12px;border:1px solid #b8bdb4;border-radius:2px;background:#fff;color:var(--ink)}
@@ -303,6 +303,7 @@ footer small{grid-column:1/-1;border-top:1px solid #3d4741;padding-top:20px;colo
    <label>拍攝地點<input type="text" name="place" placeholder="例如：臺中市西區"></label>
    <label>預算<input type="text" name="budget" placeholder="例如：NT$ 20,000–30,000"></label>
    <label class="full">留言<textarea name="message" placeholder="想拍的風格、人數或特別需求"></textarea></label>
+   <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
    <button type="submit">送出詢問</button>
    <p id="msg" role="status"></p>
   </form>
@@ -321,19 +322,33 @@ footer small{grid-column:1/-1;border-top:1px solid #3d4741;padding-top:20px;colo
 </footer>
 
 <script>
-// 無後端：把表單內容組成 Email 草稿。要改成 Formspree 等服務時，替換此段即可。
+// 貼上 Google Apps Script 部署後的「網頁應用程式網址」（結尾為 /exec）
+var SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_URL_HERE';
+
 document.getElementById('inquiry').addEventListener('submit', function (e) {
   e.preventDefault();
-  var f = e.target, msg = document.getElementById('msg');
+  var f = e.target, msg = document.getElementById('msg'), btn = f.querySelector('button');
   if (!f.name.value.trim() || !f.contact.value.trim() || !f.type.value) {
     msg.textContent = '請至少填寫姓名、聯絡方式與拍攝類型。';
     return;
   }
-  var body = ['姓名：' + f.name.value, '聯絡方式：' + f.contact.value, '拍攝類型：' + f.type.value,
-    '日期：' + f.date.value, '地點：' + f.place.value, '預算：' + f.budget.value, '留言：' + f.message.value].join('\n');
-  location.href = 'mailto:hello@xiaoke-photo.example?subject=' + encodeURIComponent('檔期詢問：' + f.type.value) +
-    '&body=' + encodeURIComponent(body);
-  msg.textContent = '已開啟郵件軟體，請按寄出完成詢問。';
+  if (f.website.value) return; // 機器人欄位，有值就不送出
+  if (SCRIPT_URL.indexOf('PASTE_') === 0) {
+    msg.textContent = '表單尚未設定收件網址，請先完成 Google Apps Script 設定。';
+    return;
+  }
+  var data = new URLSearchParams();
+  ['name','contact','type','date','place','budget','message'].forEach(function (k) { data.append(k, f[k].value.trim()); });
+  btn.disabled = true; btn.textContent = '送出中…'; msg.textContent = '';
+  fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: data })
+    .then(function () {
+      msg.textContent = '已收到你的詢問，我會在 2 個工作天內回覆。';
+      f.reset();
+    })
+    .catch(function () {
+      msg.textContent = '送出失敗，請稍後再試，或直接寄信到 hello@xiaoke-photo.example。';
+    })
+    .finally(function () { btn.disabled = false; btn.textContent = '送出詢問'; });
 });
 </script>
 </body>
